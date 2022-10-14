@@ -1,9 +1,9 @@
 # ICMPUPS
 
-ICMPUPS – a utility to send ICMP packages to any host.
+ICMPUPS – a utility to send ICMP packets to any host.
 
 ```shell
-./icmpups -d <destination ip> -c <count of packages> -t <timeout in ms>
+./icmpups -d <destination ip> -c <count of packets> -t <timeout in ms>
 ```
 
 ## Compilation
