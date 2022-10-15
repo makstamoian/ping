@@ -3,7 +3,6 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <cstring>
-#include <bitset>
 #include <unistd.h>
 #include <chrono>
 
@@ -46,7 +45,6 @@ struct icmpHeader {
 };
 
 uint16_t checksum(const void *data, size_t len) {
-
     auto p = reinterpret_cast<const uint16_t *>(data);
 
     uint32_t sum = 0;
@@ -69,7 +67,6 @@ uint16_t checksum(const void *data, size_t len) {
 
 
 int main(int argc, char **argv) {
-
     cout << endl << endl;
     cout << "'####::'######::'##::::'##:'########::'##::::'##:'########:::'######::\n"
             ". ##::'##... ##: ###::'###: ##.... ##: ##:::: ##: ##.... ##:'##... ##:\n"
@@ -93,27 +90,25 @@ int main(int argc, char **argv) {
     int timeout = 1000;
 
     for (int i = 0; i < argc; i++) {
-
-        if (strcmp(argv[i], "-h") == 0) {
+        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             help();
             return 0;
         }
 
-        if (strcmp(argv[i], "-d") == 0) {
+        if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--destination") == 0) {
             ip = argv[i + 1];
             i += 1;
         }
 
-        if (strcmp(argv[i], "-c") == 0) {
+        if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--count") == 0) {
             count_of_packages = atoi(argv[i + 1]);
             i += 1;
         }
 
-        if (strcmp(argv[i], "-t") == 0) {
+        if (strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--timeout") == 0) {
             timeout = atoi(argv[i + 1]);
             i += 1;
         }
-
     }
 
     ping(ip, count_of_packages, timeout);
@@ -122,6 +117,8 @@ int main(int argc, char **argv) {
 }
 
 void ping(char *ip, int count_of_packages, int timeout) {
+    cout << "Ping stats for " << "\033[1;35m" << ip << "\033[0m" << endl << endl;
+
     struct sockaddr_in in_addr{};
 
     in_addr.sin_family = AF_INET;
@@ -139,8 +136,8 @@ void ping(char *ip, int count_of_packages, int timeout) {
 
     unsigned long int avg_ping = 0;
 
-    for (int i = 0; i < count_of_packages; i++) {
 
+    for (int i = 0; i < count_of_packages; i++) {
         icmpPacket.type = 8;
         icmpPacket.code = 0;
         icmpPacket.checksum = 0;
@@ -168,13 +165,13 @@ void ping(char *ip, int count_of_packages, int timeout) {
 
         uint64_t ms_after = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
-        cout << "Received " << data_length_byte << " bytes of data from " << ip << "    ";
-        cout << "ICMP response type: " << unsigned(icmpResponseHeader->type) << "    ";
-        cout << "ICMP response code: " << unsigned(icmpResponseHeader->code) << "    ";
-        cout << "ICMP response checksum: " << icmpResponseHeader->checksum << "    ";
+        cout << "Received " << "\033[1;35m" << data_length_byte << "\033[0m" << " bytes of data from " << ip << "    ";
+        cout << "ICMP response type: " << "\033[1;35m" << unsigned(icmpResponseHeader->type) << "\033[0m" << "    ";
+        cout << "ICMP response code: " << "\033[1;35m" << unsigned(icmpResponseHeader->code) << "\033[0m" << "    ";
+        cout << "ICMP response checksum: " << "\033[1;35m" << icmpResponseHeader->checksum << "\033[0m" << "    ";
 
         if (unsigned(icmpResponseHeader->code) == 1) {
-            cout << endl << "Host Unreachable" << endl;
+            cout << endl << "\033[1;31m" << "Host Unreachable" << "\033[0m" << endl;
             return;
         }
 
@@ -182,9 +179,9 @@ void ping(char *ip, int count_of_packages, int timeout) {
 
         avg_ping += time;
 
-        cout << "Time: " << time << "ms" << "    ";
-        cout << "Sequence: " << i << "    ";
-        cout << "Process id: " << ppid << endl;
+        cout << "Time: " << "\033[1;35m" << time << "ms" << "\033[0m" << "    ";
+        cout << "Sequence: " << "\033[1;35m" << i << "\033[0m" << "    ";
+        cout << "Process id: " << "\033[1;35m" << ppid << "\033[0m" << endl;
 
         if (i != (count_of_packages - 1)) {
             usleep(timeout * 1000);
@@ -198,5 +195,4 @@ void ping(char *ip, int count_of_packages, int timeout) {
     } else {
         cout << "Bad connection. Avg ping " << avg_ping << "ms" << endl;
     }
-
 }
