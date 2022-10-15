@@ -6,13 +6,9 @@
 #include <cstring>
 #include <unistd.h>
 #include <chrono>
-#include <thread>
-#include <mutex>
 
 using namespace std;
 using namespace std::chrono;
-
-mutex m;
 
 void help() {
     cout << "Usage: ./icmpups" << " -d <destination ip>" << endl << endl;
@@ -48,11 +44,6 @@ struct icmpHeader {
         } redirect;
     } meta;
 };
-//
-//void threadFunction(long int& val, int& sock, struct icmpHeader *icmpResponseHeader) {
-//    std::lock_guard<std::mutex> guard(m);
-//    val = recv(sock, icmpResponseHeader, 1024, 0);
-//}
 
 uint16_t checksum(const void *data, size_t len) {
     auto p = reinterpret_cast<const uint16_t *>(data);
