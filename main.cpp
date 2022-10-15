@@ -2,12 +2,17 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <cstring>
 #include <unistd.h>
 #include <chrono>
+#include <thread>
+#include <mutex>
 
 using namespace std;
 using namespace std::chrono;
+
+mutex m;
 
 void help() {
     cout << "Usage: ./icmpups" << " -d <destination ip>" << endl << endl;
@@ -19,7 +24,7 @@ void help() {
 
 pid_t ppid = getppid();
 
-void ping(char *ip, int count_of_packages, int timeout);
+void ping(char *ip, int count_of_packages, int timeout, int response_timeout);
 
 uint16_t checksum(const void *data, size_t len);
 
@@ -43,6 +48,11 @@ struct icmpHeader {
         } redirect;
     } meta;
 };
+//
+//void threadFunction(long int& val, int& sock, struct icmpHeader *icmpResponseHeader) {
+//    std::lock_guard<std::mutex> guard(m);
+//    val = recv(sock, icmpResponseHeader, 1024, 0);
+//}
 
 uint16_t checksum(const void *data, size_t len) {
     auto p = reinterpret_cast<const uint16_t *>(data);
@@ -88,6 +98,7 @@ int main(int argc, char **argv) {
     char *ip;
     int count_of_packages = 10;
     int timeout = 1000;
+    int response_timeout = 1;
 
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -109,14 +120,19 @@ int main(int argc, char **argv) {
             timeout = atoi(argv[i + 1]);
             i += 1;
         }
+
+        if (strcmp(argv[i], "-rt") == 0 || strcmp(argv[i], "--response_timeout") == 0) {
+            response_timeout = atoi(argv[i + 1]);
+            i += 1;
+        }
     }
 
-    ping(ip, count_of_packages, timeout);
+    ping(ip, count_of_packages, timeout, response_timeout);
 
     return 0;
 }
 
-void ping(char *ip, int count_of_packages, int timeout) {
+void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
     cout << "Ping stats for " << "\033[1;35m" << ip << "\033[0m" << endl << endl;
 
     struct sockaddr_in in_addr{};
@@ -138,6 +154,10 @@ void ping(char *ip, int count_of_packages, int timeout) {
 
 
     for (int i = 0; i < count_of_packages; i++) {
+        if (i != 0) {
+            usleep(timeout * 1000);
+        }
+
         icmpPacket.type = 8;
         icmpPacket.code = 0;
         icmpPacket.checksum = 0;
@@ -161,7 +181,22 @@ void ping(char *ip, int count_of_packages, int timeout) {
 
         auto *icmpResponseHeader = (struct icmpHeader *) buf;
 
-        long int data_length_byte = recv(sock, icmpResponseHeader, sizeof(buf), 0);
+        struct timeval tv;
+        tv.tv_sec = response_timeout;
+        tv.tv_usec = 0;
+
+        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+
+        int data_length_byte = recv(sock, icmpResponseHeader, sizeof(buf), 0);
+
+        if(data_length_byte == -1) {
+            cout << "\033[1;31m" << "Host unreachable or response timeout." << "\033[0m" << "   ";
+            cout << "Sequence: " << "\033[1;35m" << i << "\033[0m" << "    ";
+            cout << "Process id: " << "\033[1;35m" << ppid << "\033[0m" << endl;
+            continue;
+        }
 
         uint64_t ms_after = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
@@ -170,22 +205,14 @@ void ping(char *ip, int count_of_packages, int timeout) {
         cout << "ICMP response code: " << "\033[1;35m" << unsigned(icmpResponseHeader->code) << "\033[0m" << "    ";
         cout << "ICMP response checksum: " << "\033[1;35m" << icmpResponseHeader->checksum << "\033[0m" << "    ";
 
-        if (unsigned(icmpResponseHeader->code) == 1) {
-            cout << endl << "\033[1;31m" << "Host Unreachable" << "\033[0m" << endl;
-            return;
-        }
-
         uint64_t time = ms_after - ms_before;
-
         avg_ping += time;
 
         cout << "Time: " << "\033[1;35m" << time << "ms" << "\033[0m" << "    ";
         cout << "Sequence: " << "\033[1;35m" << i << "\033[0m" << "    ";
         cout << "Process id: " << "\033[1;35m" << ppid << "\033[0m" << endl;
 
-        if (i != (count_of_packages - 1)) {
-            usleep(timeout * 1000);
-        }
+
     }
 
     avg_ping = avg_ping / count_of_packages;
