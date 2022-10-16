@@ -79,8 +79,6 @@ int main(int argc, char **argv) {
             "....:::......:::..:::::..::..::::::::::.......:::..::::::::::......:::";
     cout << endl << endl;
 
-    //char *count_of_packs =
-
     if (argc < 2) {
         help();
         return 0;
