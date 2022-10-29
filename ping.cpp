@@ -1,4 +1,5 @@
 #include <iostream>
+#include <bits/stdc++.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -15,12 +16,17 @@ void help() {
     cout << "Also you can use: " << endl <<
          "-c <count of packages>" << endl <<
          "-d <destination ip>" << endl <<
-         "-t <timeout in ms>" << endl;
+         "-t <timeout in ms>" << endl <<
+         "-rt <response_timeout>" << endl;
 }
 
 pid_t ppid = getppid();
 
+void catch_ctrl_c(int signal);
+
 void ping(char *ip, int count_of_packages, int timeout, int response_timeout);
+
+void stat();
 
 uint16_t checksum(const void *data, size_t len);
 
@@ -33,6 +39,7 @@ struct icmpHeader {
         struct {
             uint16_t identifier;
             uint16_t sequence;
+            uint64_t payload;
         } echo;
 
         struct ICMP_PACKET_POINTER_HEADER {
@@ -118,12 +125,18 @@ int main(int argc, char **argv) {
         }
     }
 
+    signal(SIGINT, catch_ctrl_c);
     ping(ip, count_of_packages, timeout, response_timeout);
 
     return 0;
 }
 
+int sock;
+int sent, received;
+
 void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
+
+
     cout << "Ping stats for " << "\033[1;35m" << ip << "\033[0m" << endl << endl;
 
     struct sockaddr_in in_addr{};
@@ -132,7 +145,7 @@ void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
     in_addr.sin_addr.s_addr = inet_addr(ip);
     in_addr.sin_port = htons(0);
 
-    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
 
     if (sock < 0) {
         perror("socket error");
@@ -142,7 +155,6 @@ void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
     struct icmpHeader icmpPacket{};
 
     unsigned long int avg_ping = 0;
-
 
     for (int i = 0; i < count_of_packages; i++) {
         if (i != 0) {
@@ -154,11 +166,14 @@ void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
         icmpPacket.checksum = 0;
         icmpPacket.meta.echo.identifier = ppid;
         icmpPacket.meta.echo.sequence = i;
+        icmpPacket.meta.echo.payload = 0b101101010110100101; // random binary data, doesnt matter
         icmpPacket.checksum = checksum(&icmpPacket, sizeof(icmpPacket));
 
 
         long int send_flag = sendto(sock, &icmpPacket, sizeof(icmpPacket), 0, (struct sockaddr *) &in_addr,
                                     socklen_t(sizeof(in_addr)));
+
+        sent++;
 
         uint64_t ms_before = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
@@ -191,6 +206,8 @@ void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
 
         uint64_t ms_after = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
+        received++;
+
         cout << "Received " << "\033[1;35m" << data_length_byte << "\033[0m" << " bytes of data from " << ip << "    ";
         cout << "ICMP response type: " << "\033[1;35m" << unsigned(icmpResponseHeader->type) << "\033[0m" << "    ";
         cout << "ICMP response code: " << "\033[1;35m" << unsigned(icmpResponseHeader->code) << "\033[0m" << "    ";
@@ -204,6 +221,7 @@ void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
         cout << "Process id: " << "\033[1;35m" << ppid << "\033[0m" << endl;
 
 
+
     }
 
     avg_ping = avg_ping / count_of_packages;
@@ -213,4 +231,18 @@ void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
     } else {
         cout << "Bad connection. Avg ping " << avg_ping << "ms" << endl;
     }
+    stat();
+}
+
+void stat () {
+    cout << endl << "Sent: " << "\033[1;35m" << sent << "\033[0m" << "   "
+         << "Received: " << "\033[1;35m" << received << "\033[0m" << "    "
+         << "Loss: " << "\033[1;35m" << sent - received << " (" << (sent * 100) / received << "%)" <<"\033[0m" << endl;
+}
+
+void catch_ctrl_c(int signal) {
+    close(sock);
+    stat();
+    cout << endl << "\033[1;35m" << "Socket closed. Exiting..." << "\033[0m" << endl << endl;
+    exit(signal);
 }
