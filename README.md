@@ -1,9 +1,9 @@
-# ICMPUPS
+# ping
 
-ICMPUPS – a utility to send ICMP packets to any host.
+ping – a utility to send ping packets to any host.
 
 ```shell
-./icmpups -d <destination ip> -c <count of packets> -t <timeout in ms>
+./ping -d <destination ip> -c <count of packets> -t <timeout in ms> -rt <response timeout>
 ```
 
 ## Compilation
