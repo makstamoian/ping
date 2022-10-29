@@ -20,8 +20,6 @@ void help() {
          "-rt <response_timeout>" << endl;
 }
 
-pid_t ppid = getppid();
-
 void catch_ctrl_c(int signal);
 
 void traceroute(char *ip, int max_hops, int response_timeout);
@@ -83,9 +81,7 @@ int main(int argc, char **argv) {
             "'####:. ######:: ##:::: ##: ##::::::::. #######:: ##::::::::. ######::\n"
             "....:::......:::..:::::..::..::::::::::.......:::..::::::::::......:::";
     cout << endl << endl;
-
-    //char *count_of_packs =
-
+ 
     if (argc < 2) {
         help();
         return 0;
