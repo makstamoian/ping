@@ -1,0 +1,26 @@
+name: Build ping
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build
+    - run: make
+
+    - name: Archive build artifact (Linux x86_64 exclusive)
+      uses: actions/upload-artifact@v4
+      with:
+        name: ping
+        path: ping
+
+
