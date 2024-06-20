@@ -31,25 +31,18 @@ void stat();
 uint16_t checksum(const void *data, size_t len);
 
 struct icmpHeader {
+
+    // fields shared between all ICPM header types
+
     uint8_t type;
     uint8_t code;
     uint16_t checksum;
 
-    union {
-        struct {
-            uint16_t identifier;
-            uint16_t sequence;
-            uint64_t payload;
-        } echo;
+    // fields specific to ECHO ICPM header type (others were removed due to the fact that they were never used)
 
-        struct ICMP_PACKET_POINTER_HEADER {
-            uint8_t pointer;
-        } pointer;
-
-        struct ICMP_PACKET_REDIRECT_HEADER {
-            uint32_t gatewayAddress;
-        } redirect;
-    } meta;
+    uint16_t identifier;
+    uint16_t sequence;
+    uint64_t payload;
 };
 
 uint16_t checksum(const void *data, size_t len) {
@@ -76,7 +69,7 @@ uint16_t checksum(const void *data, size_t len) {
 
 int main(int argc, char **argv) {
     cout << endl << endl;
-    cout << "Created by maxtamoian in 2022";
+    cout << "Created by makstamoian in 2022";
     cout << endl << endl;
 
     if (argc < 2) {
@@ -143,6 +136,15 @@ void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
         return;
     }
 
+
+    struct timeval tv;
+
+    tv.tv_sec = response_timeout;
+    tv.tv_usec = 0;
+
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
     struct icmpHeader icmpPacket{};
 
     unsigned long int avg_ping = 0;
@@ -155,9 +157,9 @@ void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
         icmpPacket.type = 8;
         icmpPacket.code = 0;
         icmpPacket.checksum = 0;
-        icmpPacket.meta.echo.identifier = ppid;
-        icmpPacket.meta.echo.sequence = i;
-        icmpPacket.meta.echo.payload = 0b101101010110100101; // random binary data, doesnt matter
+        icmpPacket.identifier = ppid;
+        icmpPacket.sequence = i;
+        icmpPacket.payload = 0b101101010110100101; // random binary data, doesnt matter
         icmpPacket.checksum = checksum(&icmpPacket, sizeof(icmpPacket));
 
 
@@ -177,14 +179,6 @@ void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
         char buf[1024];
 
         auto *icmpResponseHeader = (struct icmpHeader *) buf;
-
-        struct timeval tv;
-        tv.tv_sec = response_timeout;
-        tv.tv_usec = 0;
-
-        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-
 
         int data_length_byte = recv(sock, icmpResponseHeader, sizeof(buf), 0);
 
@@ -211,17 +205,12 @@ void ping(char *ip, int count_of_packages, int timeout, int response_timeout) {
         cout << "Sequence: " << "\033[1;35m" << i << "\033[0m" << "    ";
         cout << "Process id: " << "\033[1;35m" << ppid << "\033[0m" << endl;
 
-
-
     }
 
     avg_ping = avg_ping / count_of_packages;
 
-    if (avg_ping < 5) {
-        cout << "Your connection is good. Avg ping " << avg_ping << "ms" << endl;
-    } else {
-        cout << "Bad connection. Avg ping " << avg_ping << "ms" << endl;
-    }
+    cout << "Average ping " << avg_ping << "ms" << endl;
+    
     stat();
 }
 
